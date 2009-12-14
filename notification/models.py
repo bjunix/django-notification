@@ -211,7 +211,8 @@ def get_notification_language(user):
                 return language_model.language
         except (ImportError, ImproperlyConfigured, model.DoesNotExist):
             raise LanguageStoreNotAvailable
-    raise LanguageStoreNotAvailable
+    else:
+        return getattr(settings, 'LANGUAGE_CODE')
 
 def get_formatted_messages(formats, label, context):
     """
