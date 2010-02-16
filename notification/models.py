@@ -93,7 +93,7 @@ def should_send(user, notice_type, medium):
 
 class NoticeManager(models.Manager):
 
-    def notices_for(self, user, archived=False, unseen=None, on_site=None):
+    def notices_for(self, user, archived=False, unseen=None, on_site=None, sent=False):
         """
         returns Notice objects for the given user.
 
@@ -104,26 +104,44 @@ class NoticeManager(models.Manager):
         If unseen=True, return only unseen notices.
         If unseen=False, return only seen notices.
         """
-        if archived:
-            qs = self.filter(user=user)
+        if sent:
+            lookup_kwargs = {"sender": user}
         else:
-            qs = self.filter(user=user, archived=archived)
+            lookup_kwargs = {"recipient": user}
+        qs = self.filter(**lookup_kwargs)
+        if not archived:
+            self.filter(archived=archived)
         if unseen is not None:
             qs = qs.filter(unseen=unseen)
         if on_site is not None:
             qs = qs.filter(on_site=on_site)
         return qs
 
-    def unseen_count_for(self, user, **kwargs):
+    def unseen_count_for(self, recipient, **kwargs):
         """
         returns the number of unseen notices for the given user but does not
         mark them seen
         """
-        return self.notices_for(user, unseen=True, **kwargs).count()
+        return self.notices_for(recipient, unseen=True, **kwargs).count()
+    
+    def received(self, recipient, **kwargs):
+        """
+        returns notices the given recipient has recieved.
+        """
+        kwargs["sent"] = False
+        return self.notices_for(recipient, **kwargs)
+    
+    def sent(self, sender, **kwargs):
+        """
+        returns notices the given sender has sent
+        """
+        kwargs["sent"] = True
+        return self.notices_for(sender, **kwargs)
 
 class Notice(models.Model):
 
-    user = models.ForeignKey(User, verbose_name=_('user'))
+    recipient = models.ForeignKey(User, related_name='recieved_notices', verbose_name=_('recipient'))
+    sender = models.ForeignKey(User, null=True, related_name='sent_notices', verbose_name=_('sender'))
     message = models.TextField(_('message'))
     notice_type = models.ForeignKey(NoticeType, verbose_name=_('notice type'))
     added = models.DateTimeField(_('added'), default=datetime.datetime.now)
@@ -231,8 +249,12 @@ def get_formatted_messages(formats, label, context):
             'notification/%s' % format), context_instance=context)
     return format_templates
 
+<<<<<<< HEAD:notification/models.py
 def send_now(users, label, extra_context=None, on_site=True,
     from_email=settings.DEFAULT_FROM_EMAIL):
+=======
+def send_now(users, label, extra_context=None, on_site=True, sender=None):
+>>>>>>> 9bb89dd03f2c2d82320b020dbe64bc292e8a2b28:notification/models.py
     """
     Creates a new notice.
 
@@ -248,11 +270,14 @@ def send_now(users, label, extra_context=None, on_site=True,
     """
     if extra_context is None:
         extra_context = {}
-    
+
     notice_type = NoticeType.objects.get(label=label)
 
+    protocol = getattr(settings, "DEFAULT_HTTP_PROTOCOL", "http")
     current_site = Site.objects.get_current()
-    notices_url = u"http://%s%s" % (
+
+    notices_url = u"%s://%s%s" % (
+        protocol,
         unicode(current_site),
         reverse("notification_notices"),
     )
@@ -281,7 +306,8 @@ def send_now(users, label, extra_context=None, on_site=True,
 
         # update context with user specific translations
         context = Context({
-            "user": user,
+            "recipient": user,
+            "sender": sender,
             "notice": ugettext(notice_type.display),
             "notices_url": notices_url,
             "current_site": current_site,
@@ -300,8 +326,8 @@ def send_now(users, label, extra_context=None, on_site=True,
             'message': messages['full.txt'],
         }, context)
 
-        notice = Notice.objects.create(user=user, message=messages['notice.html'],
-            notice_type=notice_type, on_site=on_site)
+        notice = Notice.objects.create(recipient=user, message=messages['notice.html'],
+            notice_type=notice_type, on_site=on_site, sender=sender)
         if should_send(user, notice_type, "1") and user.email: # Email
             recipients.append(user.email)
         send_mail(subject, body, from_email, recipients)
@@ -329,8 +355,12 @@ def send(*args, **kwargs):
         else:
             return send_now(*args, **kwargs)
         
+<<<<<<< HEAD:notification/models.py
 def queue(users, label, extra_context=None, on_site=True,
     from_email=settings.DEFAULT_FROM_EMAIL):
+=======
+def queue(users, label, extra_context=None, on_site=True, sender=None):
+>>>>>>> 9bb89dd03f2c2d82320b020dbe64bc292e8a2b28:notification/models.py
     """
     Queue the notification in NoticeQueueBatch. This allows for large amounts
     of user notifications to be deferred to a seperate process running outside
@@ -344,7 +374,11 @@ def queue(users, label, extra_context=None, on_site=True,
         users = [user.pk for user in users]
     notices = []
     for user in users:
+<<<<<<< HEAD:notification/models.py
         notices.append((user, label, extra_context, on_site, from_email))
+=======
+        notices.append((user, label, extra_context, on_site, sender))
+>>>>>>> 9bb89dd03f2c2d82320b020dbe64bc292e8a2b28:notification/models.py
     NoticeQueueBatch(pickled_data=pickle.dumps(notices).encode("base64")).save()
 
 class ObservedItemManager(models.Manager):

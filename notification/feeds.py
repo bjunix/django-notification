@@ -11,11 +11,15 @@ from django.utils.translation import ugettext_lazy as _
 from notification.models import Notice
 from notification.atomformat import Feed
 
+
 ITEMS_PER_FEED = getattr(settings, 'ITEMS_PER_FEED', 20)
+DEFAULT_HTTP_PROTOCOL = getattr(settings, "DEFAULT_HTTP_PROTOCOL", "http")
+
 
 class BaseNoticeFeed(Feed):
     def item_id(self, notification):
-        return "http://%s%s" % (
+        return "%s://%s%s" % (
+            DEFAULT_HTTP_PROTOCOL,
             Site.objects.get_current().domain,
             notification.get_absolute_url(),
         )
@@ -38,15 +42,17 @@ class BaseNoticeFeed(Feed):
     def item_authors(self, notification):
         return [{"name" : notification.user.username}]
 
+
 class NoticeUserFeed(BaseNoticeFeed):
     def get_object(self, params):
         return get_object_or_404(User, username=params[0].lower())
 
     def feed_id(self, user):
-        return "http://%s%s" % (
-                Site.objects.get_current().domain,
-                reverse('notification_feed_for_user'),
-            )
+        return "%s://%s%s" % (
+            DEFAULT_HTTP_PROTOCOL,
+            Site.objects.get_current().domain,
+            reverse('notification_feed_for_user'),
+        )
 
     def feed_title(self, user):
         return _('Notices Feed')
@@ -61,10 +67,11 @@ class NoticeUserFeed(BaseNoticeFeed):
         return qs.latest('added').added
 
     def feed_links(self, user):
-        complete_url = "http://%s%s" % (
-                Site.objects.get_current().domain,
-                reverse('notification_notices'),
-            )
+        complete_url = "%s://%s%s" % (
+            DEFAULT_HTTP_PROTOCOL,
+            Site.objects.get_current().domain,
+            reverse('notification_notices'),
+        )
         return ({'href': complete_url},)
 
     def items(self, user):
