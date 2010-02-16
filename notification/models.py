@@ -231,7 +231,8 @@ def get_formatted_messages(formats, label, context):
             'notification/%s' % format), context_instance=context)
     return format_templates
 
-def send_now(users, label, extra_context=None, on_site=True):
+def send_now(users, label, extra_context=None, on_site=True,
+    from_email=settings.DEFAULT_FROM_EMAIL):
     """
     Creates a new notice.
 
@@ -303,7 +304,7 @@ def send_now(users, label, extra_context=None, on_site=True):
             notice_type=notice_type, on_site=on_site)
         if should_send(user, notice_type, "1") and user.email: # Email
             recipients.append(user.email)
-        send_mail(subject, body, settings.DEFAULT_FROM_EMAIL, recipients)
+        send_mail(subject, body, from_email, recipients)
 
     # reset environment to original language
     activate(current_language)
@@ -328,7 +329,8 @@ def send(*args, **kwargs):
         else:
             return send_now(*args, **kwargs)
         
-def queue(users, label, extra_context=None, on_site=True):
+def queue(users, label, extra_context=None, on_site=True,
+    from_email=settings.DEFAULT_FROM_EMAIL):
     """
     Queue the notification in NoticeQueueBatch. This allows for large amounts
     of user notifications to be deferred to a seperate process running outside
@@ -342,7 +344,7 @@ def queue(users, label, extra_context=None, on_site=True):
         users = [user.pk for user in users]
     notices = []
     for user in users:
-        notices.append((user, label, extra_context, on_site))
+        notices.append((user, label, extra_context, on_site, from_email))
     NoticeQueueBatch(pickled_data=pickle.dumps(notices).encode("base64")).save()
 
 class ObservedItemManager(models.Manager):
