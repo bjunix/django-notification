@@ -45,8 +45,7 @@ def send_all():
         try:
             for queued_batch in NoticeQueueBatch.objects.all():
                 notices = pickle.loads(str(queued_batch.pickled_data).decode("base64"))
-<<<<<<< HEAD:notification/engine.py
-                for user, label, extra_context, on_site, sender, from_email in notices:
+                for user, label, extra_context, on_site, from_email in notices:
                     user = User.objects.get(pk=user)
                     logging.info("emitting notice to %s" % user)
                     # call this once per user to be atomic and allow for logging to
